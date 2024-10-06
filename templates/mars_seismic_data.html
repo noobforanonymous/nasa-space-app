@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seismic Data Visualization with Custom Model</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap');
+    
+    /* @import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap'); */
+    
+    
+    
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: Josefin Sans;
+      font-weight: 700;
+      word-wrap: break-word;
+                color: #fff;
+    
+    
+            }
+
+        body {
+            background-image: url("../static/images/rect2.svg");
+            background-position: center;
+            background-size: cover;
+            background-repeat: repeat;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #seismic-graphs {
+            position: absolute;
+            
+           
+            width: 50%;
+            min-height: 100%;
+            background:transparent;
+          
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            padding-bottom: 10px;
+            padding-left: 10px;
+            /* overflow-y: scroll; */
+
+            
+        }
+
+        #seismic-graphs h2 {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: left;
+            margin-bottom: 50px;
+            font-weight: normal;
+            color: #ccc;
+
+        }
+
+
+        
+
+        #earth-container {
+            position: absolute;
+            right: 10%;
+            top: 50%;
+            transform: translate(-10%,-50%);
+            max-width: 300px;
+            max-height: 300px;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+            
+
+
+
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        .glass_container{
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            z-index: 2;
+            backdrop-filter: blur(30px);
+            background-color: #ffffff0f;
+        }
+        .content_container{
+            position: relative;
+            z-index: 3;
+            width: 100%;
+            height: 100%;
+        }
+
+        #plotly-graph{
+            width: 100%;
+            height: 200px;
+        }
+        #spectrogram{
+            width: 100%;
+            height: 400px;
+        }
+        #nav_bar{
+            min-width: 100%;
+            height: 10vh;
+            position: relative;
+            z-index: 40;
+            top:0;
+            display: flex;
+           
+            justify-content: center;
+        }
+        .title_highlight{
+            margin-left: 5%;
+            margin-right: 5%;
+            font-size: 24px;
+            font-weight: bolder;
+            
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .title_nor{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .form-group{
+            margin-top: 5px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: end;
+        }
+
+        #file_upload {
+            display: none; /* Hide the default file input */
+        }
+
+        .custom-file-label {
+            display: inline-block;
+            margin-left: 15px;
+            font-size: 16px;
+            color: #555;
+        }
+
+        .custom-file-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #ffffff;
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        .custom-file-btn:hover {
+            background-color: #555;
+            color:white
+        }
+
+        .file-name {
+            margin-left: 15px;
+            font-size: 14px;
+            color: white;
+        }
+
+        .catalog_button{
+            padding: 2%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            z-index: 25;
+            background: transparent;
+            cursor: pointer;
+            transition:1s ease;
+            &:active{
+                transform: scale(0.9);
+            }
+        }
+        .loader{
+            width: 100%;
+            height:100%;
+            position: fixed;
+            z-index: 40;
+            background-color: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            img{
+                z-index: 50;
+            }
+        }
+        #low_loader{
+            background-color: transparent;
+            display: none;
+            z-index: 50;
+        }
+        #low_loader.active{
+            background-color: transparent;
+            display: block;
+            z-index: 50;
+        }
+    </style>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "../static/sources/node_modules/three/build/three.module.js",
+            "three/addons/": "../static/sources/node_modules/three/examples/jsm/"
+          }
+        }
+      </script>
+</head>
+<body onload="setTimeout(()=>{
+    document.querySelector('.loader').style.display='none'
+},3000)">
+
+    <div class="loader">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" width="200" height="200" style="shape-rendering: auto; display: block; background: rgba(210, 211, 212, 0);" xmlns:xlink="http://www.w3.org/1999/xlink"><g><path style="transform:scale(1);transform-origin:50px 50px" stroke-linecap="round" d="M24.3 30C11.4 30 5 43.3 5 50s6.4 20 19.3 20c19.3 0 32.1-40 51.4-40 C88.6 30 95 43.3 95 50s-6.4 20-19.3 20C56.4 70 43.6 30 24.3 30z" stroke-dasharray="182.17813903808593 74.41078918457032" stroke-width="5" stroke="#ffffff" fill="none">
+            <animate values="0;256.58892822265625" keyTimes="0;1" dur="1.7857142857142856s" repeatCount="indefinite" attributeName="stroke-dashoffset"></animate>
+          </path><g></g></g><!-- [ldio] generated by https://loading.io --></svg>
+    </div>
+    <div class="catalog_button" onclick="get_file()">Download_catalog</div>
+
+    <div class="glass_container"></div>
+    
+    <div class="content_container">
+        <div id="nav_bar">
+            <div class="title_nor" onclick="window.location.href='/'">Home</div>
+            <div class="title_highlight" onclick="window.location.href='/'">Seismic Waves</div>
+            <div class="title_nor" onclick="window.location.href='/'">Contact Us</div>
+        </div>
+
+        <div id="seismic-graphs">
+            <h1>Seismic Detection Data of Mars</h1>
+            <div class="form-group">
+                <label for="file_upload">Upload CSV:</label>
+                <button type="button" class="custom-file-btn" onclick="document.getElementById('file_upload').click();">Upload CSV</button>
+                <span id="file-name" class="file-name" >No file chosen</span>
+                <input type="file" id="file_upload" name="file" onchange="updateFileName();" required multiple>
+            </div>
+            <div class="" id="low_loader">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" width="200" height="200" style="shape-rendering: auto; display: block; background: rgba(210, 211, 212, 0);" xmlns:xlink="http://www.w3.org/1999/xlink"><g><path style="transform:scale(1);transform-origin:50px 50px" stroke-linecap="round" d="M24.3 30C11.4 30 5 43.3 5 50s6.4 20 19.3 20c19.3 0 32.1-40 51.4-40 C88.6 30 95 43.3 95 50s-6.4 20-19.3 20C56.4 70 43.6 30 24.3 30z" stroke-dasharray="182.17813903808593 74.41078918457032" stroke-width="5" stroke="#ffffff" fill="none">
+                    <animate values="0;256.58892822265625" keyTimes="0;1" dur="1.7857142857142856s" repeatCount="indefinite" attributeName="stroke-dashoffset"></animate>
+                  </path><g></g></g><!-- [ldio] generated by https://loading.io --></svg>
+            </div>
+            <div id="plotly-graph"></div>
+            <div id="spectrogram"></div> <!-- Spectrogram container -->
+        </div>
+
+        <div id="earth-container"></div>
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <!-- <script src="https://code.jquery.com/jquery-3.7.1.slim.js" integrity="sha256-UgvvN8vBkgO0luPSUl2s8TIlOSYRoGFAX4jlCIm9Adc=" crossorigin="anonymous"></script> -->
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // Set up the 3D Earth model using Three.js
+        let scene = new THREE.Scene();
+        let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        // Set the renderer with alpha for transparency
+        let renderer = new THREE.WebGLRenderer({ alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('earth-container').appendChild(renderer.domElement);
+
+        // Transparent background
+        renderer.setClearColor(0x000000, 0);  // The second parameter is alpha (0 for transparent)
+
+        // Load the custom 3D model
+        let loader = new GLTFLoader();
+        loader.load('../static/models/mars.glb', function (gltf) {
+            let customModel = gltf.scene;
+            customModel.scale.set(1, 1, 1); // Adjust the scale if needed
+            scene.add(customModel);
+        }, undefined, function (error) {
+            console.error(error);
+        });
+
+        // Brighter lighting for the model
+        let ambientLight = new THREE.AmbientLight(0x404040, 4); // Ambient light with higher intensity
+        scene.add(ambientLight);
+
+        let directionalLight = new THREE.DirectionalLight(0xffffff, 2); // Directional light to brighten up the model
+        directionalLight.position.set(10, 10, 10);  // Position the light
+        scene.add(directionalLight);
+
+        camera.position.z = 1000;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            scene.rotation.y += 0.01;  // Rotate the whole scene slowly
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle resizing
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        // Plotly.js for Seismic Data
+        // let seismicData = {
+        //     x: ['08:00', '08:10', '08:20', '08:30', '08:40', '08:50', '09:00'],
+        //     y: [2000, 1800, -1000, 0, 800, -500, 1000],
+        //     type: 'scatter',
+        //     line: { color: '#6cc1ff', width: 2 }
+        // };
+
+        // let layout = {
+        //     title: 'Amplitude Trace',
+        //     titlefont: { color: '#ccc', size: 16 },
+        //     paper_bgcolor: 'transparent',
+        //     plot_bgcolor: 'transparent',
+        //     font: {
+        //         color: '#fff'
+        //     },
+        //     xaxis: {
+        //         title: 'Time',
+        //         color: '#fff',
+        //         tickcolor: '#ccc',
+        //         titlefont: { color: '#ccc' }
+        //     },
+        //     yaxis: {
+        //         title: 'Amplitude',
+        //         color: '#fff',
+        //         tickcolor: '#ccc',
+        //         titlefont: { color: '#ccc' }
+        //     },
+        //     margin: { t: 40, r: 20, l: 100, b: 50 }
+        // };
+
+        // Plotly.newPlot('plotly-graph', [seismicData], layout);
+
+        // // Add a Spectrogram below the amplitude plot
+        // let spectrogramData = {
+        //     z: [ // The z array should contain time-frequency data (e.g. STFT result).
+        //         [20, 10, 5], 
+        //         [30, 20, 15], 
+        //         [40, 30, 25]
+        //     ], // Replace with actual STFT or wavelet transform data.
+        //     x: ['08:00', '08:20', '08:40'], // Time axis
+        //     y: [1, 5, 10], // Frequency axis
+        //     type: 'heatmap',
+        //     colorscale: 'Jet',
+        // };
+
+        // let spectrogramLayout = {
+        //     title: 'Seismic Spectrogram',
+        //     titlefont: { color: '#ccc', size: 16 },
+        //     paper_bgcolor: 'transparent',
+        //     plot_bgcolor: 'transparent',
+        //     font: {
+        //         color: '#fff'
+        //     },
+        //     xaxis: {
+        //         title: 'Time',
+        //         color: '#fff',
+        //         tickcolor: '#ccc',
+        //         titlefont: { color: '#ccc' }
+        //     },
+        //     yaxis: {
+        //         title: 'Frequency (Hz)',
+        //         color: '#fff',
+        //         tickcolor: '#ccc',
+        //         titlefont: { color: '#ccc' }
+        //     },
+        //     margin: { t: 40, r: 20, l: 100, b: 50 }
+        // };
+
+        // Plotly.newPlot('spectrogram', [spectrogramData], spectrogramLayout);
+    </script>
+
+    <script defer>
+            function parseCSV(data) {
+            const rows = data.split('\n');
+            const rel_time = [];
+            const velocity = [];
+            
+            rows.forEach((row, index) => {
+                if (index > 0 && row) { // Skip the header row
+                    const cols = row.split(',');
+                    rel_time.push(parseFloat(cols[1]));  // relative time
+                    velocity.push(parseFloat(cols[2]));  // velocity
+                }
+            });
+            
+            return { rel_time, velocity };
+        }
+
+        // Plot the data using Plotly.js
+        function plotSeismicData(data,csv) {
+            const trace = {
+                x: data.rel_time,
+                y: data.velocity,
+                mode: 'lines',
+                name: 'Seismic Velocity',
+                line: {color: '#6cc1ff'}
+            };
+
+            const layout = {
+                title: 'Seismic Data: Velocity vs Relative Time',
+                titlefont: { color: '#ccc', size: 16 },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: {
+                    color: '#fff'
+                },
+                xaxis: {
+                    title: 'Relative Time (sec)',
+                    color: '#fff',
+                    tickcolor: '#ccc',
+                    titlefont: { color: '#ccc' }
+                },
+                yaxis: {
+                    title: 'Velocity (c/s)',
+                    color: '#fff',
+                    tickcolor: '#ccc',
+                    titlefont: { color: '#ccc' }
+                },
+                margin: { t: 40, r: 20, l: 100, b: 50 }
+                
+            };
+
+            Plotly.newPlot('plotly-graph', [trace], layout);
+
+
+            setTimeout(() => {
+
+                
+                    addRedLine(csv.velocity); 
+                
+                // Call with your desired time value
+            }, 2000);
+        }
+
+        // This function will add a red line at a specified time on the graph
+function addRedLine(times) {
+    const plotDiv = document.getElementById('plotly-graph');
+    
+    // Retrieve existing shapes, or initialize an empty array
+    const existingShapes = plotDiv.layout.shapes || [];
+
+    // Create new shapes for each time
+    const newShapes = times.map(time => ({
+        type: 'line',
+        x0: time,
+        y0: 0,                // Change as needed for your y-axis range
+        x1: time,
+        y1: 1,                // Change as needed for your y-axis range
+        yref: 'paper',        // Reference to the paper's y-axis (0 to 1)
+        line: {
+            color: 'red',
+            width: 2
+        }
+    }));
+
+    // Combine existing shapes with new ones
+    const updatedShapes = existingShapes.concat(newShapes);
+
+    // Update the plot with the new shapes
+    Plotly.relayout(plotDiv, { shapes: updatedShapes });
+}
+
+
+function addRedLine2(times) {
+    const plotDiv = document.getElementById('spectrogram');
+    
+    // Retrieve existing shapes, or initialize an empty array
+    const existingShapes = plotDiv.layout.shapes || [];
+
+    // Create new shapes for each time
+    const newShapes = times.map(time => ({
+        type: 'line',
+        x0: time,
+        y0: 0,                // Change as needed for your y-axis range
+        x1: time,
+        y1: 1,                // Change as needed for your y-axis range
+        yref: 'paper',        // Reference to the paper's y-axis (0 to 1)
+        line: {
+            color: 'red',
+            width: 2
+        }
+    }));
+
+    // Combine existing shapes with new ones
+    const updatedShapes = existingShapes.concat(newShapes);
+
+    // Update the plot with the new shapes
+    Plotly.relayout(plotDiv, { shapes: updatedShapes });
+}
+
+ // You can call this dynamically after reading from the output file
+        
+
+
+
+        var file_names = []
+        function updateFileName() {
+            const fileInput = document.getElementById('file_upload');
+            const fileNameDisplay = document.getElementById('file-name');
+            const loader = document.querySelector("#low_loader")
+            console.log(loader)
+            loader.classList.add("active")
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = fileInput.files[0].name;
+
+                const files = event.target.files;
+                var formData = new FormData();
+    //             for (let i = 0; i < files.length; i++) {
+    // // Update the displayed file name
+    //             document.getElementById('file-name').innerText = files[0].name;
+
+    //             // Get the file name without the path (if any)
+    //             var the_file_name = files[i].name.split("/").pop();
+    //             file_names.push(the_file_name);    // Add to file names array
+
+    //             // Append the file to FormData
+    //             formData.append('file[]', files[i]);
+    //         }
+
+            document.getElementById('file-name').innerText = files[0].name;
+            var the_file_name = files[0].name.split("/").pop();
+            formData.append('file', files[0])
+            $.ajax({
+                type: "POST",
+                url: "/upload",
+                data: formData,
+                processData: false, // Don't process the data
+                contentType: false,
+                success: function (response) {
+                    // alert(response)
+                    loader.classList.remove("active")
+
+                    $.ajax({
+                        type: "GET",
+                        url: "/getfile/mars_catalog.csv",
+                        
+                        success: function (respon) {
+                            const main_csv = parseCSV(respon);
+                            console.log(main_csv)
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const csvData = e.target.result;
+                                const data = parseCSV(csvData);
+                                plotSeismicData(data,main_csv);
+                                plotSpectrogram(data,main_csv)
+                            };
+                            reader.readAsText(files[0]);
+                            
+                        }
+                    });
+
+
+                },
+
+                error: function (xhr, status, error) { 
+
+                    console.log(xhr.responseText)
+                 }
+            });
+
+            
+        
+
+            } else {
+                fileNameDisplay.textContent = 'No file chosen';
+            }
+        }
+
+
+
+        function calculateSpectrogram(data, fs = 1) {
+            const windowSize = 256; // Adjust window size for the STFT
+            const hopSize = windowSize / 2;
+            const velocity = data.velocity;
+
+            const nWindows = Math.floor((velocity.length - windowSize) / hopSize);
+            const spectrogram = [];
+            const times = [];
+
+            for (let i = 0; i < nWindows; i++) {
+                const start = i * hopSize;
+                const segment = velocity.slice(start, start + windowSize);
+
+                // Apply a windowing function (Hann window)
+                const hannWindow = segment.map((x, index) => x * (0.5 - 0.5 * Math.cos(2 * Math.PI * index / (windowSize - 1))));
+                
+                // Compute FFT for the current segment
+                const fft = new FFT(windowSize);
+                const spectrum = fft.forward(hannWindow);
+
+                spectrogram.push(spectrum.slice(0, windowSize / 2)); // Keep half of the frequencies
+                times.push(data.rel_time[start]);
+            }
+
+            return { spectrogram, times };
+        }
+
+function plotSpectrogram(data,csv) {
+    const { spectrogram, times } = calculateSpectrogram(data);
+
+    // Prepare data for Plotly's heatmap (time vs frequency)
+    const zData = spectrogram.map(row => row.map(x => Math.log(Math.abs(x)))); // Log scaling
+
+    const trace = {
+        z: zData,
+        x: times,
+        y: Array.from({ length: zData[0].length }, (_, i) => i), // Frequency bins
+        type: 'heatmap',
+        colorscale: [
+            [0, 'red'],   // Minimum value color
+            [1, 'blue']     // Maximum value color
+        ],
+        colorbar: {
+            title: 'Intensity',  // Optional: Add a title for the color bar
+            titleside: 'right',  // Optional: Position the title on the right
+            titlefont: { color: '#fff' },
+            tickfont: { color: '#fff' },
+            tickvals: [0, Math.max(...zData.flat())],  // Show ticks for min/max values
+            ticktext: ['0', Math.max(...zData.flat()).toFixed(2)]  // Show ticks with labels
+        }
+    };
+
+    const layout = {
+        title: 'Seismic Spectrogram (Time vs Frequency)',
+        xaxis: { title: 'Time (sec)' },
+        yaxis: { title: 'Frequency (Hz)' },
+
+        titlefont: { color: '#ccc', size: 16 },
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        font: {
+            color: '#fff'
+        },
+        xaxis: {
+            title: 'Time (sec)',
+            color: '#fff',
+            tickcolor: '#ccc',
+            titlefont: { color: '#ccc' }
+        },
+        yaxis: {
+            title: 'Frequency (Hz)',
+            color: '#fff',
+            tickcolor: '#ccc',
+            titlefont: { color: '#ccc' }
+        },
+        margin: { t: 40, r: 20, l: 100, b: 50 }
+    };
+
+    Plotly.newPlot('spectrogram', [trace], layout);
+    setTimeout(()=>{
+        addRedLine2(csv.velocity);
+        
+    },2000)
+}
+
+// Example FFT class (you can use a library like dsp.js for efficient FFT calculation)
+class FFT {
+    constructor(size) {
+        this.size = size;
+    }
+
+    forward(data) {
+        // Here, you'd implement the FFT algorithm or use a library
+        // Placeholder to return dummy data for now
+        return Array(this.size).fill(0).map(() => Math.random());
+    }
+}
+
+function get_file() {
+   
+    var link = document.createElement('a');
+    
+   
+    link.href = '/getfile/mars_catalog.csv';
+    
+
+    link.download = 'mars_catalog.csv';
+
+    
+    document.body.appendChild(link);
+    
+    
+    link.click();
+    
+
+    document.body.removeChild(link);
+}
+
+</script>
+</body>
+</html>

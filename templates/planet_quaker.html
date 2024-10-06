@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seismic Data Visualization with Custom Model</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap');
+    
+/* @import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap'); */
+
+
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Josefin Sans;
+  font-weight: 700;
+  word-wrap: break-word;
+            color: #fff;
+
+
+        }
+
+
+        @keyframes left_in{
+            0%{
+                transform: translateX(100%);
+
+                body{
+                    background: transparent ;
+                }
+            }
+            100%{
+                transform:translateX(0%);
+
+                body{
+                    background-image: url("../static/images/rect3.svg");
+                }
+            }
+        }
+        @keyframes right_in{
+            0%{
+                transform: translateX(-100%);
+            }
+            100%{
+                transform:translateX(0%)
+            }
+        }
+
+        body {
+            background-image: url("../static/images/rect3.svg");
+            background-position: center;
+            background-size: cover;
+            background-repeat: repeat;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #seismic-graphs {
+            width: 50%; /* Adjust width to take up half of the screen */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding-bottom:10%;
+            padding-left: 5%;
+            /* animation: left_in 5s ease 0s; */
+
+        }
+
+        #earth-container {
+            width: 50%; /* Adjust width to take up half of the screen */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding-bottom:10%;
+            padding-right: 5%;
+            /* animation: right_in 5s ease 0s; */
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .glass_container{
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            z-index: 2;
+            backdrop-filter: blur(30px);
+            background-color: #ffffff0f;
+        }
+
+        .content_container {
+            position: relative;
+            z-index: 3;
+            width: 100%;
+            height: 100%;
+        }
+
+        #plotly-graph{
+            width: 100%;
+            height: 200px;
+        }
+
+        #spectrogram{
+            width: 100%;
+            height: 400px;
+        }
+
+        #nav_bar {
+            min-width: 100%;
+            height: 10vh;
+            position: relative;
+            z-index: 40;
+            top:0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .title_highlight {
+            margin-left: 5%;
+            margin-right: 5%;
+            font-size: 24px;
+            font-weight: bolder;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            justify-content: center;
+        }
+
+        .title_nor {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .main_title{
+            font-size: 50px;
+            font-weight: bold;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%,-50%);
+            z-index: 30;
+            text-align: center;
+        }
+
+        .main_bottom{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-left: 20%;
+            padding-right: 20%;
+            position: absolute;
+            top: 80%;
+            left: 50%;
+            transform: translate(-50%,-80%);
+            z-index: 30;
+            width: 100%;
+            
+        }
+
+        .main_buttons{
+          
+           
+            font-size: 20px;
+            border-radius: 25px;
+            padding: 10px 20px;
+
+            cursor: pointer;
+            transition: 1s ease;
+            &:active{
+                transform: scale(0.8);
+            }
+            
+        }
+
+        .m{
+            background-color: #ffffffb5;
+            color: black;
+        }
+
+        .mr{
+            background-color: rgba(255, 106, 0, 0.607);
+            color: #fff;
+        }
+
+        .loader{
+            width: 100%;
+            height:100%;
+            position: fixed;
+            z-index: 40;
+            background-color: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            img{
+                z-index: 50;
+            }
+        }
+
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "../static/sources/node_modules/three/build/three.module.js",
+                "three/addons/": "../static/sources/node_modules/three/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body onload="setTimeout(()=>{
+    document.querySelector('.loader').style.display='none'
+},3000)">
+
+    <div class="loader">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" width="200" height="200" style="shape-rendering: auto; display: block; background: rgba(210, 211, 212, 0);" xmlns:xlink="http://www.w3.org/1999/xlink"><g><path style="transform:scale(1);transform-origin:50px 50px" stroke-linecap="round" d="M24.3 30C11.4 30 5 43.3 5 50s6.4 20 19.3 20c19.3 0 32.1-40 51.4-40 C88.6 30 95 43.3 95 50s-6.4 20-19.3 20C56.4 70 43.6 30 24.3 30z" stroke-dasharray="182.17813903808593 74.41078918457032" stroke-width="5" stroke="#ffffff" fill="none">
+            <animate values="0;256.58892822265625" keyTimes="0;1" dur="1.7857142857142856s" repeatCount="indefinite" attributeName="stroke-dashoffset"></animate>
+          </path><g></g></g><!-- [ldio] generated by https://loading.io --></svg>
+    </div>
+    <div class="main_title">
+        PLANET QUAKER
+        <br>
+        <h5 style="font-size: 20px;">A Galatic Seismic Detector</h5>
+    </div>
+    <div class="main_bottom">
+        <div class="main_buttons m" onclick="window.location.href='moon'">Moon</div>
+        <div class="main_buttons mr" onclick="window.location.href='mars'">Mars</div>
+    </div>
+    <div class="glass_container"></div>
+    <div class="content_container">
+        <div id="nav_bar">
+            <div class="title_nor" onclick="window.location.href='/'">Home</div>
+            <div class="title_highlight" onclick="window.location.href='/'">NASA HACK</div>
+            <div class="title_nor" onclick="window.location.href='/'">Contact Us</div>
+        </div>
+
+        <div class="container">
+            <div id="earth-container"></div> <!-- Earth 3D Model -->
+            <div id="seismic-graphs"></div>  <!-- Moon or Seismic Data Model -->
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // First 3D Scene (Earth Model)
+        let scene1 = new THREE.Scene();
+        let camera1 = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        let renderer1 = new THREE.WebGLRenderer({ alpha: true });
+        renderer1.setSize(window.innerWidth / 2, window.innerHeight);  // Render in half of the screen
+        document.getElementById('earth-container').appendChild(renderer1.domElement);
+
+        // Load Earth model
+        let loader1 = new GLTFLoader();
+        loader1.load('../static/models/moon.glb', function (gltf) {
+            let customModel1 = gltf.scene;
+            customModel1.scale.set(1, 0.5, 1);
+            scene1.add(customModel1);
+        });
+
+        let ambientLight1 = new THREE.AmbientLight(0x404040, 4); 
+        scene1.add(ambientLight1);
+
+        let directionalLight1 = new THREE.DirectionalLight(0xffffff, 2); 
+        directionalLight1.position.set(10, 10, 10);  
+        scene1.add(directionalLight1);
+
+        camera1.position.z = 1000;
+
+        function animate1() {
+            requestAnimationFrame(animate1);
+            scene1.rotation.y += 0.01;
+            renderer1.render(scene1, camera1);
+        }
+        animate1();
+
+        // Second 3D Scene (Moon Model)
+        let scene2 = new THREE.Scene();
+        let camera2 = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        let renderer2 = new THREE.WebGLRenderer({ alpha: true });
+        renderer2.setSize(window.innerWidth / 2, window.innerHeight);  // Render in half of the screen
+        document.getElementById('seismic-graphs').appendChild(renderer2.domElement);
+
+        // Load Moon model
+        let loader2 = new GLTFLoader();
+        loader2.load('../static/models/mars.glb', function (gltf) {
+            let customModel2 = gltf.scene;
+            customModel2.scale.set(1, 0.5, 1);
+            scene2.add(customModel2);
+        });
+
+        let ambientLight2 = new THREE.AmbientLight(0x404040, 4);
+        scene2.add(ambientLight2);
+
+        let directionalLight2 = new THREE.DirectionalLight(0xffffff, 2); 
+        directionalLight2.position.set(10, 10, 10);
+        scene2.add(directionalLight2);
+
+        camera2.position.z = 1000;
+
+        function animate2() {
+            requestAnimationFrame(animate2);
+            scene2.rotation.y += 0.01;
+            renderer2.render(scene2, camera2);
+        }
+        animate2();
+
+        // Handle resizing
+        window.addEventListener('resize', () => {
+            renderer1.setSize(window.innerWidth / 2, window.innerHeight);
+            camera1.aspect = window.innerWidth / 2 / window.innerHeight;
+            camera1.updateProjectionMatrix();
+
+            renderer2.setSize(window.innerWidth / 2, window.innerHeight);
+            camera2.aspect = window.innerWidth / 2 / window.innerHeight;
+            camera2.updateProjectionMatrix();
+        });
+
+
+        
+    </script>
+
+
+
+</body>
+</html>
